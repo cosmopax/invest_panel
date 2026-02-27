@@ -1,49 +1,49 @@
 # MERIDIAN — Development Roadmap
 
-**Last Updated**: (auto-update on each change)
+**Last Updated**: 2026-02-27T03:15:00Z
 **Spec**: `docs/MERIDIAN-Technical-Specification-v1.md`
 
 ---
 
 ## Phase 0: Environment & Repository Setup
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 0.5 days
-**Actual**: —
+**Actual**: 2026-02-27
 
-- [ ] Create GitHub repo `invest_panel`
-- [ ] Scaffold Next.js 15 with App Router, TypeScript, Tailwind
-- [ ] Install all dependencies (Appendix A of spec)
-- [ ] Configure Antigravity IDE workspace
-- [ ] Set up `.env.local` template and `.env.example`
-- [ ] Configure Drizzle, `.gitignore`, `README.md`
-- [ ] Initial commit and push
-- [ ] Set up Claude Code customisations (CLAUDE.md, agents, skills, rules)
-- [ ] Set up project tracking docs (this file, TASKLOG, STATUS, VISION)
+- [x] Create GitHub repo `invest_panel`
+- [x] Scaffold Next.js 16 with App Router, TypeScript, Tailwind v4
+- [x] Install all dependencies (Appendix A of spec)
+- [x] Configure Antigravity IDE workspace
+- [x] Set up `.env.local` template and `.env.example`
+- [x] Configure Drizzle, `.gitignore`, `README.md`
+- [x] Initial commit and push
+- [x] Set up Claude Code customisations (CLAUDE.md, agents, skills, rules)
+- [x] Set up project tracking docs (this file, TASKLOG, STATUS, VISION)
 
 ---
 
 ## Phase 1: Foundation
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 2-3 days
-**Actual**: —
+**Actual**: 2026-02-27
 **Tag**: `v0.1.0-phase1`
 
-- [ ] 1.1 Database schema — all tables from spec Section 2
-- [ ] 1.2 FTS5 virtual tables and triggers
-- [ ] 1.3 Database connection with WAL mode
-- [ ] 1.4 Finnhub API client
-- [ ] 1.5 CoinGecko API client (batch support)
-- [ ] 1.6 Metals.Dev API client
-- [ ] 1.7 ECB SDMX rates client
-- [ ] 1.8 Unified PriceService with cache-first logic
-- [ ] 1.9 Token bucket rate limiter
-- [ ] 1.10 Portfolio CRUD API route handlers
-- [ ] 1.11 Price API route handlers
-- [ ] 1.12 Settings API route handlers
-- [ ] 1.13 Dashboard page (holdings table, performance chart, allocation donut)
-- [ ] 1.14 Settings page (API key management)
-- [ ] 1.15 Shared layout (sidebar, top bar, dark theme)
-- [ ] 1.16 Zustand UI store + TanStack Query provider
+- [x] 1.1 Database schema — all tables from spec Section 2
+- [x] 1.2 FTS5 virtual tables and triggers
+- [x] 1.3 Database connection with WAL mode
+- [x] 1.4 Finnhub API client
+- [x] 1.5 CoinGecko API client (batch support)
+- [x] 1.6 Metals.Dev API client
+- [x] 1.7 ECB SDMX rates client
+- [x] 1.8 Unified PriceService with cache-first logic
+- [x] 1.9 Token bucket rate limiter
+- [x] 1.10 Portfolio CRUD API route handlers
+- [x] 1.11 Price API route handlers
+- [x] 1.12 Settings API route handlers
+- [x] 1.13 Dashboard page (holdings table, performance chart, allocation donut)
+- [x] 1.14 Settings page (API key management)
+- [x] 1.15 Shared layout (sidebar, top bar, dark theme)
+- [x] 1.16 Zustand UI store + TanStack Query provider
 
 **Definition of Done**: User can add holdings across stocks, crypto, and metals, see real-time EUR valuations, and view portfolio performance.
 
