@@ -1,8 +1,8 @@
 # MERIDIAN — Project Status
 
-**Last Updated**: 2026-02-27T04:00:00Z
-**Current Phase**: 4 — The Desk + Scout + Strategist (next)
-**Overall Progress**: 67% (Phase 0-3 complete)
+**Last Updated**: 2026-02-27T05:00:00Z
+**Current Phase**: 5 — The Forum + Full Orchestration (next)
+**Overall Progress**: 83% (Phase 0-4 complete)
 
 ---
 
@@ -14,12 +14,12 @@
 | 1 | Foundation | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 2 | The Wire + Sentinel | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 3 | The Archive + Librarian | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
-| 4 | The Desk + Scout + Strategist | ⬜ Not Started | 0% | — | — |
+| 4 | The Desk + Scout + Strategist | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 5 | The Forum + Full Orchestration | ⬜ Not Started | 0% | — | — |
 
 ## Current Work
 
-**Active Task**: Phase 4 — The Desk + Scout + Strategist agents
+**Active Task**: Phase 5 — The Forum + Full Orchestration
 **Blockers**: None. API keys not yet configured in .env.local (not blocking dev).
 **Open Questions**: None
 
@@ -27,12 +27,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Files created | ~68 source files |
-| Lines of code | ~7,300 (src/) |
+| Files created | ~80 source files |
+| Lines of code | ~9,300 (src/) |
 | Build status | ✅ passing |
 | Type check status | ✅ zero errors |
-| Git commits | 10 |
-| Last commit | f959eec |
+| Git commits | 13 |
+| Last commit | fc69d27 |
 | Git tag | v0.1.0-phase1 |
 | DB size | 217KB (schema + FTS5 tables) |
 
@@ -58,15 +58,30 @@
 - **Agent run history**: Settings page shows scheduler status, cumulative stats, recent runs with duration/tokens/cost.
 - **API routes**: `/api/news` (GET with filters + FTS5, PATCH read/bookmark), `/api/agents` (GET history + stats, POST manual trigger).
 
+## What Works (Phase 3)
+
+- **Knowledge library**: 30 seed entries across 6 domains (Financial Math, Behavioral Economics, Macro, Futures Studies, Game Theory, Complexity Science).
+- **Archive page**: Taxonomy browser sidebar, knowledge cards grid, FTS5 search, entry detail with KaTeX math rendering.
+- **Librarian agent**: Weekly knowledge discovery via Claude API, prioritizes underrepresented domains.
+- **Cross-references**: Intra-domain related entries with bidirectional navigation.
+- **API routes**: `/api/knowledge` (GET with slug/search/taxonomy/seed).
+
+## What Works (Phase 4)
+
+- **Technical indicators**: RSI(14), MACD(12/26/9), SMA/EMA(50/200), Bollinger Bands(20/2), volume trends. Human-readable summaries for Scout context.
+- **Scout agent**: Fetches 200-day OHLCV data, computes technicals, reads Sentinel news context (last 48h), generates opportunity/risk/rebalance recommendations. Runs every 4 hours.
+- **Strategist agent**: Macro synthesis via Opus model. Scenario planning (3-4 scenarios with probabilities), regime identification, historical parallels, assumption challenging. Reads Scout recommendations + Sentinel news digest. Runs weekday mornings 8 AM CET.
+- **Inter-agent data flow**: Sentinel writes news_items → Scout reads for context. Scout writes recommendations → Strategist reads for synthesis. All via shared SQLite DB.
+- **Desk page**: Category tabs (All/Opportunities/Risk Warnings/Rebalancing/Macro Thesis), expandable recommendation cards with confidence meters, evidence display, risk assessment, related asset badges with action types. Stats cards, filter controls (agent/horizon/status/confidence), Run Scout/Strategist buttons.
+- **Recommendation tracking**: Status lifecycle (active → expired/validated/invalidated), accuracy scoring, outcome notes, auto-expiry based on time horizon.
+- **API routes**: `/api/recommendations` (GET with filters, PATCH for status/outcome updates).
+
 ## What's NOT Working Yet
 
 - **Live prices**: Dashboard shows cost basis only (no API keys configured yet). PriceService is implemented but needs keys.
 - **Performance chart**: Lightweight Charts component not yet built (spec says area chart with time range).
 - **Watchlist UI**: API route exists, no UI component yet.
 - **CSV export/import**: Buttons exist but disabled.
-- **Scout agent**: Phase 4 — technical analysis, opportunity scanning.
-- **Strategist agent**: Phase 4 — macro synthesis with Opus model.
-- **Desk page**: Phase 4 — recommendation cards, category tabs.
 - **Forum chat**: Phase 5 work.
 
 ## Deviations from Spec
@@ -94,7 +109,7 @@
 
 ## Next Steps
 
-1. Begin Phase 4: Scout agent, Strategist agent, /desk page with recommendation cards
+1. Begin Phase 5: Forum page with chat interface, Strategist conversations, message streaming
 2. User should configure API keys in `.env.local` to enable live pricing + agent runs
 3. Add performance chart (Lightweight Charts) to dashboard
 4. Add watchlist UI component to dashboard

@@ -68,3 +68,11 @@ Chronological log of all completed tasks.
 - **Build**: pass
 - **Status**: complete
 - **Notes**: 30 seed knowledge entries across 6 domains (Financial Mathematics, Behavioral Economics, Macroeconomics, Futures Studies, Game Theory, Complexity Science) with full LaTeX math, explanations, practical applications, limitations, and cross-references. Knowledge service with FTS5 search, domain taxonomy, seeding. Librarian agent discovers new entries weekly (Monday 2 AM CET). Archive page with domain sidebar taxonomy browser, knowledge cards grid, FTS5 search. Entry detail page with KaTeX math rendering (dynamic import, SSR disabled), react-markdown for explanations, related entries navigation. ~2,500 lines added.
+
+### [2026-02-27T05:00:00Z] Phase 4: The Desk + Scout + Strategist
+- **Phase**: 4
+- **Files**: 9 files (technical-indicators.ts, scout.ts, strategist.ts, scheduler.ts updated, api/recommendations/route.ts, use-recommendations.ts, recommendation-card.tsx, desk-filters.tsx, desk/page.tsx)
+- **Decisions**: None
+- **Build**: pass
+- **Status**: complete
+- **Notes**: Technical indicators library (RSI, MACD, SMA/EMA, Bollinger Bands, volume trends) with summarize function for Scout prompt injection. Scout agent: fetches 200-day OHLCV from Finnhub/CoinGecko, computes all technicals per asset, reads Sentinel news context (last 48h), generates 1-5 typed recommendations per run. Strategist agent: uses Opus model for deep macro analysis, scenario planning with probabilities, regime identification, historical parallels, assumption challenging. Reads Scout recs + Sentinel digest. Inter-agent data flow via shared DB (news_items → Scout, recommendations → Strategist). Recommendations API with full filter set (type, status, agent, confidence range, horizon) + PATCH for status/outcome/accuracy. Desk page: 5 category tabs, expandable cards with confidence meters and evidence display, stats cards, filter controls, Run Scout/Strategist manual triggers. ~2,000 lines added.

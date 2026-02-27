@@ -85,17 +85,17 @@
 ---
 
 ## Phase 4: The Desk + Scout + Strategist
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 3-4 days
-**Actual**: —
+**Actual**: 2026-02-27
 **Tag**: `v0.4.0-phase4`
 
-- [ ] 4.1 `/desk` page (recommendation cards, category tabs, history)
-- [ ] 4.2 Scout agent (price analysis, technical indicators)
-- [ ] 4.3 Strategist agent (macro synthesis, Opus model)
-- [ ] 4.4 Technical indicator calculations (RSI, MACD, MA, Bollinger)
-- [ ] 4.5 Recommendation accuracy tracking
-- [ ] 4.6 Inter-agent data flow (Scout reads Sentinel, Strategist reads all)
+- [x] 4.1 `/desk` page (recommendation cards, category tabs, history)
+- [x] 4.2 Scout agent (price analysis, technical indicators)
+- [x] 4.3 Strategist agent (macro synthesis, Opus model)
+- [x] 4.4 Technical indicator calculations (RSI, MACD, MA, Bollinger)
+- [x] 4.5 Recommendation accuracy tracking
+- [x] 4.6 Inter-agent data flow (Scout reads Sentinel, Strategist reads all)
 
 **Definition of Done**: Scout and Strategist generate recommendations visible on The Desk.
 
