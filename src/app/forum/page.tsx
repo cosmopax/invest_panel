@@ -63,8 +63,14 @@ const CONVERSATION_TYPES = [
   {
     value: "strategy_session",
     label: "Strategy Session",
-    description: "Deep macro analysis (Opus model)",
+    description: "Deep macro analysis",
   },
+];
+
+const PROVIDER_OPTIONS = [
+  { value: "claude", label: "Claude", description: "Deep reasoning (Opus)" },
+  { value: "gemini", label: "Gemini", description: "Fast analysis (Pro)" },
+  { value: "codex", label: "Codex", description: "Analytical (GPT-5.3)" },
 ];
 
 export default function ForumPage() {
@@ -73,6 +79,7 @@ export default function ForumPage() {
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState("general");
+  const [newProvider, setNewProvider] = useState("claude");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const contextVisible = useUIStore((s) => s.forumContextVisible);
@@ -86,9 +93,11 @@ export default function ForumPage() {
   const archiveConv = useArchiveConversation();
 
   const convType = convDetail?.conversation?.type || "general";
+  const convProvider = convDetail?.conversation?.preferredProvider || "claude";
   const { sendMessage, isStreaming, streamingContent, cancel } = useChat(
     selectedConvId || "",
     convType,
+    convProvider,
   );
 
   const conversations = convData?.conversations ?? [];
@@ -104,11 +113,13 @@ export default function ForumPage() {
     const result = await createConv.mutateAsync({
       title: newTitle.trim(),
       type: newType,
+      preferredProvider: newProvider,
     });
     setSelectedConvId(result.id);
     setNewConvOpen(false);
     setNewTitle("");
     setNewType("general");
+    setNewProvider("claude");
   };
 
   const handleSend = async (message: string) => {
@@ -153,6 +164,12 @@ export default function ForumPage() {
                     className="h-4 px-1.5 text-[9px] border-zinc-700"
                   >
                     {convType}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="h-4 px-1.5 text-[9px] border-zinc-700 text-blue-400"
+                  >
+                    {convProvider}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">
                     {messageList.length} messages
@@ -280,6 +297,26 @@ export default function ForumPage() {
                         <div className="font-medium">{t.label}</div>
                         <div className="text-xs text-muted-foreground">
                           {t.description}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>AI Provider</Label>
+              <Select value={newProvider} onValueChange={setNewProvider}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_OPTIONS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      <div>
+                        <div className="font-medium">{p.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.description}
                         </div>
                       </div>
                     </SelectItem>

@@ -1,10 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import {
   BaseAgent,
   type AgentConfig,
   type AgentRunResult,
 } from "./base-agent";
-import { MODELS } from "@/lib/ai/claude-client";
 import { getDb } from "@/lib/db";
 import {
   assets,
@@ -15,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { newId } from "@/lib/utils/id";
+import type { AIResponse, OrchestratorTask } from "@/lib/ai/types";
 
 /** Strategist output schema. */
 interface StrategistOutput {
@@ -67,46 +66,6 @@ interface StrategistContext {
   macroData: string;
 }
 
-const STRATEGIST_SYSTEM = `You are Strategist, a senior macro-economic analyst and investment strategist. Your role is to synthesize information across all domains to form coherent strategic views.
-
-You think in terms of:
-- Regime identification: What economic regime are we in? What transitions are likely?
-- Scenario planning: What are the 3-4 most plausible future scenarios? What probability do you assign to each?
-- Historical parallels: What past periods most closely resemble current conditions?
-- Portfolio stress testing: How would the current portfolio perform under each scenario?
-- Assumption challenging: What beliefs does the current portfolio implicitly embed? Are they still valid?
-
-OUTPUT SCHEMA (return ONLY valid JSON, no explanatory text):
-{
-  "macroRegime": { "current": "...", "confidence": 0.7, "transitionRisks": ["..."] },
-  "scenarios": [
-    {
-      "name": "Base case",
-      "probability": 0.45,
-      "description": "...",
-      "portfolioImpact": { "stocks": "+5-8%", "gold": "-2%", "crypto": "+10-15%" },
-      "signals": ["Watch for: ...", "Invalidated if: ..."]
-    }
-  ],
-  "historicalParallels": [{ "period": "2018-2019", "similarity": 0.7, "keyDifference": "..." }],
-  "assumptions": [
-    { "assumption": "ECB will cut rates before Q3", "validity": 0.6, "challenge": "..." }
-  ],
-  "recommendations": [
-    {
-      "type": "macro_thesis",
-      "title": "...",
-      "thesis": "...",
-      "evidence": [{ "type": "macro", "detail": "..." }],
-      "riskAssessment": "...",
-      "confidence": 0.0-1.0,
-      "timeHorizon": "months" | "quarters",
-      "relatedAssets": [{ "assetId": "...", "action": "buy" | "sell" | "hold" | "watch" }]
-    }
-  ],
-  "nextReview": "YYYY-MM-DD"
-}`;
-
 /** Compute expiry date for a recommendation. */
 function computeExpiry(timeHorizon: string): string {
   const now = new Date();
@@ -129,17 +88,18 @@ function computeExpiry(timeHorizon: string): string {
   return now.toISOString();
 }
 
-/** Strategist agent — macro synthesis, scenario planning, Opus model. */
+/** Strategist agent — macro synthesis, scenario planning. Cross-verified by 2 providers. */
 export class StrategistAgent extends BaseAgent {
   constructor() {
     const config: AgentConfig = {
       id: "strategist",
       name: "Strategist",
-      model: MODELS.deep, // Opus — the deep thinker
+      skillId: "macro-synthesis",
       maxTokensOutput: parseInt(
         process.env.AGENT_STRATEGIST_MAX_OUTPUT_TOKENS || "4000",
       ),
       schedule: process.env.AGENT_STRATEGIST_CRON || "0 8 * * 1-5",
+      crossVerify: true, // Enable 2-verifier cross-verification
     };
     super(config);
   }
@@ -190,7 +150,7 @@ export class StrategistAgent extends BaseAgent {
       ),
     ].join("\n");
 
-    // 2. Recent news digest (last 7 days, top 40 by relevance)
+    // 2. Recent news digest
     const weekAgo = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000,
     ).toISOString();
@@ -218,7 +178,7 @@ export class StrategistAgent extends BaseAgent {
             .join("\n")
         : "No recent news data available.";
 
-    // 3. Active Scout recommendations (last week)
+    // 3. Active Scout recommendations
     const activeRecsRows = await db
       .select()
       .from(recommendations)
@@ -243,7 +203,7 @@ export class StrategistAgent extends BaseAgent {
             .join("\n")
         : "No active recommendations.";
 
-    // 4. Macro data context (we build from available information)
+    // 4. Macro data context
     const macroData = [
       "Current macro context (derived from news and market data):",
       "- EUR base currency portfolio",
@@ -255,43 +215,39 @@ export class StrategistAgent extends BaseAgent {
     return { portfolioFull, newsDigest, activeRecs, macroData };
   }
 
-  getSystemPrompt(): string {
-    return STRATEGIST_SYSTEM;
-  }
-
-  buildMessages(context: StrategistContext): Anthropic.MessageParam[] {
-    return [
-      {
-        role: "user",
-        content: `PORTFOLIO:\n${context.portfolioFull}\n\nRECENT NEWS DIGEST:\n${context.newsDigest}\n\nACTIVE RECOMMENDATIONS:\n${context.activeRecs}\n\nMACRO INDICATORS:\n${context.macroData}`,
+  buildTask(context: StrategistContext): OrchestratorTask {
+    return {
+      skillId: "macro-synthesis",
+      input: {
+        portfolioFull: context.portfolioFull,
+        newsDigest: context.newsDigest,
+        activeRecs: context.activeRecs,
+        macroData: context.macroData,
       },
-    ];
+      crossVerify: true,
+      verifierCount: 2,
+    };
   }
 
   async processResponse(
-    response: Anthropic.Message,
+    response: AIResponse,
   ): Promise<AgentRunResult & { output: StrategistOutput | null }> {
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return {
-        itemsProcessed: 0,
-        itemsCreated: 0,
-        summary: "No text response from Claude",
-        output: null,
-      };
-    }
-
     let output: StrategistOutput | null = null;
-    try {
-      let jsonStr = textBlock.text.trim();
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr
-          .replace(/^```(?:json)?\n?/, "")
-          .replace(/\n?```$/, "");
+
+    if (response.parsed && typeof response.parsed === "object") {
+      output = response.parsed as StrategistOutput;
+    } else {
+      try {
+        let jsonStr = response.text.trim();
+        if (jsonStr.startsWith("```")) {
+          jsonStr = jsonStr
+            .replace(/^```(?:json)?\n?/, "")
+            .replace(/\n?```$/, "");
+        }
+        output = JSON.parse(jsonStr);
+      } catch {
+        console.error("[Strategist] Failed to parse response as JSON");
       }
-      output = JSON.parse(jsonStr);
-    } catch {
-      console.error("[Strategist] Failed to parse Claude response as JSON");
     }
 
     const recCount = output?.recommendations?.length ?? 0;
@@ -313,7 +269,7 @@ export class StrategistAgent extends BaseAgent {
     const db = getDb();
     let created = 0;
 
-    // Persist recommendations
+    // Persist individual recommendations
     for (const rec of result.output.recommendations || []) {
       try {
         await db.insert(recommendations).values({
@@ -339,7 +295,7 @@ export class StrategistAgent extends BaseAgent {
       }
     }
 
-    // Also persist the macro regime and scenarios as a single macro_thesis recommendation
+    // Persist the macro regime + scenarios as a single macro_thesis
     if (result.output.macroRegime && result.output.scenarios?.length) {
       try {
         const scenarioSummary = result.output.scenarios

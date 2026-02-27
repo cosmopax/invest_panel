@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { getClaudeClient, MODELS, estimateCost } from "@/lib/ai/claude-client";
+import { Orchestrator } from "@/lib/ai/orchestrator";
+import type { ProviderType } from "@/lib/ai/types";
 import { getDb } from "@/lib/db";
 import {
   conversations,
@@ -10,23 +10,18 @@ import {
   newsItems,
   recommendations,
 } from "@/lib/db/schema";
-import { eq, desc, gte, and } from "drizzle-orm";
+import { eq, desc, gte } from "drizzle-orm";
 import { newId } from "@/lib/utils/id";
 
 export const runtime = "nodejs";
 
-/** Conversation type determines model and system prompt. */
-const CONVERSATION_CONFIGS: Record<
-  string,
-  { model: string; maxTokens: number; promptPrefix: string }
-> = {
+/** Conversation type determines system prompt flavor. */
+const CONVERSATION_PROMPTS: Record<string, { maxTokens: number; promptPrefix: string }> = {
   general: {
-    model: MODELS.routine,
     maxTokens: 2500,
     promptPrefix: `You are Strategist, a senior macro-economic analyst and investment strategist for the MERIDIAN platform. Help the user think through investment decisions, analyze market conditions, and explore ideas. Be conversational but precise. Use markdown for formatting.`,
   },
   scenario_planning: {
-    model: MODELS.deep,
     maxTokens: 4000,
     promptPrefix: `You are Strategist, a senior macro-economic analyst. This is a SCENARIO PLANNING session. Focus on:
 - Identifying 3-4 most plausible future scenarios with probability assignments
@@ -37,7 +32,6 @@ const CONVERSATION_CONFIGS: Record<
 Structure your responses with clear scenario tables and probability assessments. Use markdown.`,
   },
   portfolio_review: {
-    model: MODELS.routine,
     maxTokens: 2500,
     promptPrefix: `You are Strategist, a senior investment analyst. This is a PORTFOLIO REVIEW session. Focus on:
 - Analyzing current holdings: what's working, what's not
@@ -48,7 +42,6 @@ Structure your responses with clear scenario tables and probability assessments.
 Be direct and specific about positions. Use markdown tables for comparisons.`,
   },
   strategy_session: {
-    model: MODELS.deep,
     maxTokens: 4000,
     promptPrefix: `You are Strategist, a senior macro-economic analyst. This is a STRATEGY SESSION focused on deep analysis. Think in terms of:
 - Regime identification: what economic regime are we in? What transitions are likely?
@@ -143,10 +136,38 @@ async function buildContext(): Promise<{
   return { portfolio, news, recs };
 }
 
+/** Simulated streaming: chunk text into SSE events at intervals. */
+function simulateStream(
+  fullText: string,
+  chunkSize: number = 50,
+  intervalMs: number = 15,
+): ReadableStream {
+  const encoder = new TextEncoder();
+  let offset = 0;
+
+  return new ReadableStream({
+    async start(controller) {
+      while (offset < fullText.length) {
+        const chunk = fullText.slice(offset, offset + chunkSize);
+        offset += chunkSize;
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`),
+        );
+        if (offset < fullText.length) {
+          await new Promise((r) => setTimeout(r, intervalMs));
+        }
+      }
+    },
+  });
+}
+
 /**
  * POST /api/chat
- * Body: { conversationId, message, conversationType }
+ * Body: { conversationId, message, conversationType, preferredProvider? }
  * Returns: SSE stream of text deltas + final usage data
+ *
+ * Uses the multi-AI Orchestrator with simulated streaming.
+ * CLI tools execute fully before returning — we chunk the response into SSE events.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -155,6 +176,7 @@ export async function POST(request: NextRequest) {
       conversationId,
       message: userMessage,
       conversationType = "general",
+      preferredProvider,
     } = body;
 
     if (!conversationId || !userMessage) {
@@ -165,7 +187,6 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    const client = getClaudeClient();
 
     // Save user message
     const userMsgId = newId();
@@ -191,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     // Build system prompt with context
     const config =
-      CONVERSATION_CONFIGS[conversationType] || CONVERSATION_CONFIGS.general;
+      CONVERSATION_PROMPTS[conversationType] || CONVERSATION_PROMPTS.general;
     const context = await buildContext();
 
     const systemPrompt = `${config.promptPrefix}
@@ -207,58 +228,54 @@ ${context.recs}
 
 Date: ${new Date().toISOString().slice(0, 10)}`;
 
-    // Build messages for Claude
-    const apiMessages: Anthropic.MessageParam[] = history.map((m) => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: m.content,
-    }));
+    // Build conversation as a single prompt (CLI tools don't support multi-turn)
+    const historyText = history
+      .map((m) => `${m.role === "assistant" ? "ASSISTANT" : "USER"}: ${m.content}`)
+      .join("\n\n");
 
-    // Create streaming response via SSE
-    const stream = client.messages.stream({
-      model: config.model,
-      max_tokens: config.maxTokens,
-      system: systemPrompt,
-      messages: apiMessages,
+    // Execute via Orchestrator
+    const response = await Orchestrator.executeRaw(
+      {
+        systemPrompt,
+        prompt: historyText,
+        maxTokens: config.maxTokens,
+        temperature: 0.5,
+      },
+      "forum",
+      preferredProvider as ProviderType | undefined,
+    );
+
+    const fullResponse = response.text;
+    const assistantMsgId = newId();
+
+    // Persist assistant message
+    await db.insert(messages).values({
+      id: assistantMsgId,
+      conversationId,
+      role: "assistant",
+      content: fullResponse,
+      agentId: "strategist",
+      tokenUsage: {
+        provider: response.provider,
+        cost: response.costUsd ?? 0,
+        wasFallback: response.wasFallback,
+        originalProvider: response.originalProvider,
+      },
     });
 
-    const assistantMsgId = newId();
-    let fullResponse = "";
+    // Create SSE response with simulated streaming
+    const textStream = simulateStream(fullResponse);
+    const encoder = new TextEncoder();
 
     const readable = new ReadableStream({
       async start(controller) {
-        const encoder = new TextEncoder();
+        const reader = textStream.getReader();
         try {
-          for await (const event of stream) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const text = event.delta.text;
-              fullResponse += text;
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ text })}\n\n`),
-              );
-            }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            controller.enqueue(value);
           }
-
-          // Get final message for usage
-          const finalMessage = await stream.finalMessage();
-          const usage = finalMessage.usage;
-
-          // Persist assistant message
-          await db.insert(messages).values({
-            id: assistantMsgId,
-            conversationId,
-            role: "assistant",
-            content: fullResponse,
-            agentId: "strategist",
-            tokenUsage: {
-              input: usage.input_tokens,
-              output: usage.output_tokens,
-              model: config.model,
-              cost: estimateCost(config.model, usage),
-            },
-          });
 
           // Send done event
           controller.enqueue(
@@ -266,10 +283,11 @@ Date: ${new Date().toISOString().slice(0, 10)}`;
               `data: ${JSON.stringify({
                 done: true,
                 messageId: assistantMsgId,
+                provider: response.provider,
                 usage: {
-                  input: usage.input_tokens,
-                  output: usage.output_tokens,
-                  cost: estimateCost(config.model, usage),
+                  cost: response.costUsd ?? 0,
+                  durationMs: response.durationMs,
+                  wasFallback: response.wasFallback,
                 },
               })}\n\n`,
             ),

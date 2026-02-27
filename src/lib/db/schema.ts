@@ -253,6 +253,7 @@ export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   type: text("type").default("general"), // 'general' | 'scenario_planning' | 'portfolio_review' | 'strategy_session'
+  preferredProvider: text("preferred_provider").default("claude"), // 'claude' | 'gemini' | 'codex'
   isArchived: integer("is_archived", { mode: "boolean" }).default(false),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
@@ -299,6 +300,7 @@ export const agentRuns = sqliteTable(
     tokensInput: integer("tokens_input"),
     tokensOutput: integer("tokens_output"),
     model: text("model"),
+    provider: text("provider").default("claude"), // 'claude' | 'gemini' | 'codex'
     estimatedCostUsd: real("estimated_cost_usd"),
 
     config: text("config", { mode: "json" }),

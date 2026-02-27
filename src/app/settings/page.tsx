@@ -1,10 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Database, RefreshCw, Bot, Play } from "lucide-react";
+import { Download, Database, RefreshCw, Bot, Play, Cpu } from "lucide-react";
 import { useAgentRuns, useTriggerAgent } from "@/hooks/use-news";
 
 interface ApiKeyStatus {
@@ -23,9 +23,29 @@ interface SettingsResponse {
   };
 }
 
+interface ProviderHealth {
+  provider: string;
+  status: "available" | "unavailable" | "degraded";
+  latencyMs?: number;
+  error?: string;
+  checkedAt: string;
+}
+
+interface HealthResponse {
+  providers: ProviderHealth[];
+  availableCount: number;
+  totalCount: number;
+}
+
 async function fetchSettings(): Promise<SettingsResponse> {
   const res = await fetch("/api/settings");
   if (!res.ok) throw new Error("Failed to fetch settings");
+  return res.json();
+}
+
+async function fetchHealth(): Promise<HealthResponse> {
+  const res = await fetch("/api/ai/health");
+  if (!res.ok) throw new Error("Failed to fetch health");
   return res.json();
 }
 
@@ -40,9 +60,12 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          API keys, agent configuration, and data management
+          AI providers, agent configuration, and data management
         </p>
       </div>
+
+      {/* AI Provider Health */}
+      <ProviderHealthCard />
 
       {/* API Key Status */}
       <Card>
@@ -134,6 +157,116 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** Provider Health Card — shows status of Claude, Gemini, Codex CLIs. */
+function ProviderHealthCard() {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["ai-health"],
+    queryFn: fetchHealth,
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ai/health", { method: "POST" });
+      if (!res.ok) throw new Error("Refresh failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-health"] });
+    },
+  });
+
+  const providers = data?.providers ?? [];
+
+  const providerMeta: Record<string, { label: string; role: string }> = {
+    claude: { label: "Claude Code (Opus 4.6)", role: "Strategist, Forum" },
+    gemini: { label: "Gemini CLI (3.1 Pro)", role: "Sentinel, Librarian" },
+    codex: { label: "Codex CLI (GPT-5.3)", role: "Scout" },
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Cpu className="h-4 w-4" />
+          AI Providers
+        </CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refreshMutation.mutate()}
+          disabled={refreshMutation.isPending}
+        >
+          <RefreshCw className={`mr-1 h-3 w-3 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Multi-AI orchestration using CLI subscriptions. Agents route to their
+          preferred provider with automatic fallback.
+        </p>
+        <div className="space-y-3">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Checking providers...</p>
+          ) : (
+            providers.map((p) => {
+              const meta = providerMeta[p.provider] ?? {
+                label: p.provider,
+                role: "Unknown",
+              };
+              return (
+                <div
+                  key={p.provider}
+                  className="flex items-center justify-between rounded-md border border-border px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        p.status === "available"
+                          ? "bg-emerald-400"
+                          : p.status === "degraded"
+                            ? "bg-amber-400"
+                            : "bg-red-400"
+                      }`}
+                    />
+                    <div>
+                      <span className="text-sm font-medium">{meta.label}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {meta.role}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {p.latencyMs != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {(p.latencyMs / 1000).toFixed(1)}s
+                      </span>
+                    )}
+                    <Badge
+                      variant={
+                        p.status === "available" ? "default" : "destructive"
+                      }
+                    >
+                      {p.status}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        {data && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {data.availableCount}/{data.totalCount} providers available
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -256,8 +389,7 @@ function AgentRunsCard() {
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No agent runs yet. Configure your Anthropic API key and run
-            Sentinel.
+            No agent runs yet. Ensure CLI tools are installed and run Sentinel.
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -273,6 +405,7 @@ function AgentRunsCard() {
                 tokensOutput: number | null;
                 estimatedCostUsd: number | null;
                 error: string | null;
+                model: string | null;
               }) => (
                 <div
                   key={run.id}
@@ -294,6 +427,11 @@ function AgentRunsCard() {
                     <span className="text-muted-foreground">
                       {run.triggerType}
                     </span>
+                    {run.model && (
+                      <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                        {run.model.split(":")[0]}
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 text-muted-foreground">
                     {run.durationMs != null && (

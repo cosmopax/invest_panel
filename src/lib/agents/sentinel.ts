@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { BaseAgent, type AgentConfig, type AgentRunResult } from "./base-agent";
 import {
   fetchAllNews,
@@ -6,7 +5,7 @@ import {
   persistNewsItems,
   type RawNewsItem,
 } from "@/lib/services/news-service";
-import { MODELS } from "@/lib/ai/claude-client";
+import type { AIResponse, OrchestratorTask } from "@/lib/ai/types";
 
 /** Sentinel classification result for a single news item. */
 interface SentinelClassification {
@@ -22,69 +21,49 @@ interface SentinelClassification {
   summary: string;
 }
 
+/** Sentinel context for a run. */
+interface SentinelContext {
+  newItems: RawNewsItem[];
+  trackedAssets: Awaited<ReturnType<typeof getTrackedAssets>>;
+}
+
 /** Sentinel agent — monitors news, classifies, and tags sentiment. */
 export class SentinelAgent extends BaseAgent {
+  private _lastContext: SentinelContext | null = null;
+
   constructor() {
     const config: AgentConfig = {
       id: "sentinel",
       name: "Sentinel",
-      model: MODELS.routine,
+      skillId: "classify-news",
       maxTokensOutput: parseInt(
         process.env.AGENT_SENTINEL_MAX_OUTPUT_TOKENS || "2000",
       ),
       schedule: process.env.AGENT_SENTINEL_CRON || "*/15 * * * *",
+      crossVerify: false, // High volume — no verification
     };
     super(config);
   }
 
-  async gatherContext(): Promise<{
-    newItems: RawNewsItem[];
-    trackedAssets: Awaited<ReturnType<typeof getTrackedAssets>>;
-  }> {
+  async gatherContext(): Promise<SentinelContext> {
     const [newItems, trackedAssets] = await Promise.all([
       fetchAllNews(),
       getTrackedAssets(),
     ]);
+    this._lastContext = { newItems, trackedAssets };
     return { newItems, trackedAssets };
   }
 
-  getSystemPrompt(): string {
-    return `You are Sentinel, a financial news intelligence analyst for the MERIDIAN investment research platform. Your role is to classify, assess, and score news articles.
-
-For each article in the batch, return a JSON array of assessments. Each assessment must have this structure:
-
-{
-  "index": <number>,
-  "category": "geopolitics" | "macro" | "central_bank" | "tech" | "energy" | "regulatory" | "earnings" | "market_structure",
-  "relevanceScore": 0.0-1.0,
-  "sentiment": "bullish" | "bearish" | "neutral",
-  "sentimentScore": -1.0 to 1.0,
-  "sentimentAssets": { "<SYMBOL>": { "sentiment": "bullish"|"bearish"|"neutral", "score": -1.0 to 1.0 } },
-  "sourceQuality": 1-10,
-  "narrativeTag": "string or null",
-  "isActionable": boolean,
-  "summary": "2-sentence key takeaway"
-}
-
-SCORING GUIDELINES:
-- relevanceScore: 0.8+ for direct portfolio impact (earnings, regulatory), 0.5-0.8 for sector/macro, 0.2-0.5 for general market, <0.2 for tangential
-- sentimentScore: +0.7 to +1.0 very bullish, +0.3 to +0.7 moderately bullish, -0.3 to +0.3 neutral, etc.
-- sourceQuality: Reuters/Bloomberg 9, ECB/BIS 10, FT 8, mainstream financial 6, blogs/social 3
-
-Return ONLY a valid JSON array. No explanatory text.`;
-  }
-
-  buildMessages(context: {
-    newItems: RawNewsItem[];
-    trackedAssets: Awaited<ReturnType<typeof getTrackedAssets>>;
-  }): Anthropic.MessageParam[] {
+  buildTask(context: SentinelContext): OrchestratorTask {
     if (context.newItems.length === 0) {
-      return [
-        {
-          role: "user",
-          content: "No new articles to classify. Return an empty JSON array: []",
+      return {
+        skillId: "classify-news",
+        input: {
+          portfolioContext: "No tracked assets.",
+          articleCount: "0",
+          articleList: "No new articles to classify. Return an empty JSON array: []",
         },
-      ];
+      };
     }
 
     const portfolioContext = context.trackedAssets.length > 0
@@ -98,46 +77,40 @@ Return ONLY a valid JSON array. No explanatory text.`;
       )
       .join("\n\n");
 
-    return [
-      {
-        role: "user",
-        content: `${portfolioContext}\n\nClassify the following ${context.newItems.length} article(s):\n\n${articleList}`,
+    return {
+      skillId: "classify-news",
+      input: {
+        portfolioContext,
+        articleCount: String(context.newItems.length),
+        articleList,
       },
-    ];
+    };
   }
 
   async processResponse(
-    response: Anthropic.Message,
+    response: AIResponse,
   ): Promise<AgentRunResult & { classifications: SentinelClassification[] }> {
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return {
-        itemsProcessed: 0,
-        itemsCreated: 0,
-        summary: "No text response from Claude",
-        classifications: [],
-      };
-    }
-
     let classifications: SentinelClassification[] = [];
-    try {
-      // Extract JSON from response (handle potential markdown code blocks)
-      let jsonStr = textBlock.text.trim();
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+
+    if (response.parsed && Array.isArray(response.parsed)) {
+      classifications = response.parsed as SentinelClassification[];
+    } else {
+      // Try to extract from text
+      try {
+        let jsonStr = response.text.trim();
+        if (jsonStr.startsWith("```")) {
+          jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+        }
+        const parsed = JSON.parse(jsonStr);
+        classifications = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        console.error("[Sentinel] Failed to parse response as JSON");
       }
-      classifications = JSON.parse(jsonStr);
-      if (!Array.isArray(classifications)) {
-        classifications = [];
-      }
-    } catch {
-      console.error("[Sentinel] Failed to parse Claude response as JSON");
-      classifications = [];
     }
 
     return {
       itemsProcessed: classifications.length,
-      itemsCreated: 0, // Updated after persistResults
+      itemsCreated: 0,
       summary: `Classified ${classifications.length} articles`,
       classifications,
     };
@@ -146,9 +119,6 @@ Return ONLY a valid JSON array. No explanatory text.`;
   async persistResults(
     result: AgentRunResult & { classifications?: SentinelClassification[] },
   ): Promise<void> {
-    // Re-fetch newItems to match with classifications
-    // (gatherContext was called earlier, items are in memory via the run flow)
-    // We need to access the items from gatherContext — store them on instance
     if (!this._lastContext || !result.classifications?.length) return;
 
     const classifiedItems = this._lastContext.newItems.map((item, idx) => {
@@ -172,25 +142,13 @@ Return ONLY a valid JSON array. No explanatory text.`;
     result.summary = `Classified ${result.itemsProcessed} articles, inserted ${inserted} new items`;
   }
 
-  // Store context between lifecycle methods
-  private _lastContext: {
-    newItems: RawNewsItem[];
-    trackedAssets: Awaited<ReturnType<typeof getTrackedAssets>>;
-  } | null = null;
-
-  /** Override run to capture context for persistResults. */
+  /** Override run to reset context after execution. */
   async run(trigger: "scheduled" | "manual" | "event"): Promise<AgentRunResult> {
-    // Intercept gatherContext to store the result
-    const originalGather = this.gatherContext.bind(this);
-    this.gatherContext = async () => {
-      const ctx = await originalGather();
-      this._lastContext = ctx;
-      return ctx;
-    };
-
-    const result = await super.run(trigger);
-    this._lastContext = null;
-    return result;
+    try {
+      return await super.run(trigger);
+    } finally {
+      this._lastContext = null;
+    }
   }
 }
 

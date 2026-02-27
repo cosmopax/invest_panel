@@ -1,35 +1,37 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { getClaudeClient, estimateCost } from "@/lib/ai/claude-client";
 import { getDb } from "@/lib/db";
 import { agentRuns } from "@/lib/db/schema";
 import { newId } from "@/lib/utils/id";
 import { eq } from "drizzle-orm";
+import { Orchestrator } from "@/lib/ai/orchestrator";
+import type { AIResponse, OrchestratorTask, ProviderType } from "@/lib/ai/types";
 
 export interface AgentConfig {
   id: string; // 'sentinel' | 'scout' | 'librarian' | 'strategist'
   name: string;
-  model: string;
+  /** Primary skill ID used by this agent. */
+  skillId: string;
   maxTokensOutput: number;
   schedule: string; // Cron expression
+  /** Enable cross-verification for this agent's output. */
+  crossVerify: boolean;
 }
 
 export interface AgentRunResult {
   itemsProcessed: number;
   itemsCreated: number;
   summary: string;
+  /** Provider that actually served the request. */
+  provider?: ProviderType;
   [key: string]: unknown;
 }
 
 /**
  * Abstract base class for all MERIDIAN agents.
- * Handles lifecycle: record start → gather context → call Claude → process → persist → record end.
+ * Uses the Orchestrator for AI calls instead of the Anthropic SDK directly.
+ * Lifecycle: record start -> gather context -> build task -> execute via Orchestrator -> process -> persist -> record end.
  */
 export abstract class BaseAgent {
-  protected client: Anthropic;
-
-  constructor(protected config: AgentConfig) {
-    this.client = getClaudeClient();
-  }
+  constructor(protected config: AgentConfig) {}
 
   /** Execute a full agent run. */
   async run(trigger: "scheduled" | "manual" | "event"): Promise<AgentRunResult> {
@@ -43,32 +45,29 @@ export abstract class BaseAgent {
       agentId: this.config.id,
       triggerType: trigger,
       status: "running",
-      model: this.config.model,
+      model: `orchestrator:${this.config.skillId}`,
     });
 
     try {
       // 1. Gather context
       const context = await this.gatherContext();
 
-      // 2. Build messages
-      const messages = this.buildMessages(context);
+      // 2. Build orchestrator task
+      const task = this.buildTask(context);
 
-      // 3. Execute Claude API call
-      const response = await this.client.messages.create({
-        model: this.config.model,
-        max_tokens: this.config.maxTokensOutput,
-        system: this.getSystemPrompt(),
-        messages,
-      });
+      // 3. Execute via Orchestrator
+      const response = this.config.crossVerify
+        ? (await Orchestrator.executeWithVerification(task)).primary
+        : await Orchestrator.execute(task);
 
       // 4. Process response
       const result = await this.processResponse(response);
+      result.provider = response.provider;
 
       // 5. Persist results
       await this.persistResults(result);
 
       // 6. Update run record
-      const usage = response.usage;
       await db
         .update(agentRuns)
         .set({
@@ -76,14 +75,14 @@ export abstract class BaseAgent {
           completedAt: new Date().toISOString(),
           durationMs: Date.now() - startTime,
           result: result as Record<string, unknown>,
-          tokensInput: usage.input_tokens,
-          tokensOutput: usage.output_tokens,
-          estimatedCostUsd: estimateCost(this.config.model, usage),
+          estimatedCostUsd: response.costUsd ?? null,
+          // DECISION: provider is stored in the model field as "provider:skill"
+          model: `${response.provider}:${this.config.skillId}`,
         })
         .where(eq(agentRuns.id, runId));
 
       console.log(
-        `[${this.config.name}] Run completed: ${result.itemsProcessed} processed, ${result.itemsCreated} created (${Date.now() - startTime}ms)`,
+        `[${this.config.name}] Run completed via ${response.provider}: ${result.itemsProcessed} processed, ${result.itemsCreated} created (${Date.now() - startTime}ms)${response.wasFallback ? ` [fallback from ${response.originalProvider}]` : ""}`,
       );
 
       return result;
@@ -108,16 +107,11 @@ export abstract class BaseAgent {
   /** Gather context from the database for this run. */
   abstract gatherContext(): Promise<unknown>;
 
-  /** Get the system prompt for Claude. */
-  abstract getSystemPrompt(): string;
+  /** Build an OrchestratorTask from the gathered context. */
+  abstract buildTask(context: unknown): OrchestratorTask;
 
-  /** Build the messages array for the Claude API call. */
-  abstract buildMessages(context: unknown): Anthropic.MessageParam[];
-
-  /** Process Claude's response into a structured result. */
-  abstract processResponse(
-    response: Anthropic.Message,
-  ): Promise<AgentRunResult>;
+  /** Process the AI response into a structured result. */
+  abstract processResponse(response: AIResponse): Promise<AgentRunResult>;
 
   /** Persist the processed results to the database. */
   abstract persistResults(result: AgentRunResult): Promise<void>;

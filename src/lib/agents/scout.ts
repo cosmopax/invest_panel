@@ -1,10 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import {
   BaseAgent,
   type AgentConfig,
   type AgentRunResult,
 } from "./base-agent";
-import { MODELS } from "@/lib/ai/claude-client";
 import { getDb } from "@/lib/db";
 import {
   assets,
@@ -13,7 +11,7 @@ import {
   newsItems,
   recommendations,
 } from "@/lib/db/schema";
-import { eq, desc, gte, and } from "drizzle-orm";
+import { eq, desc, gte } from "drizzle-orm";
 import { newId } from "@/lib/utils/id";
 import * as finnhub from "@/lib/services/finnhub";
 import * as coingecko from "@/lib/services/coingecko";
@@ -22,6 +20,7 @@ import {
   computeIndicators,
   summarizeIndicators,
 } from "@/lib/utils/technical-indicators";
+import type { AIResponse, OrchestratorTask } from "@/lib/ai/types";
 
 /** Context gathered for a Scout run. */
 interface ScoutContext {
@@ -48,34 +47,6 @@ interface ScoutRecommendation {
     action: "buy" | "sell" | "hold" | "watch";
   }>;
 }
-
-const SCOUT_SYSTEM = `You are Scout, an investment opportunity analyst combining technical analysis, fundamental data, and macro context.
-
-Analyze the provided market data and generate investment insights. Each insight must follow this schema:
-
-{
-  "type": "opportunity" | "risk_warning" | "rebalance" | "macro_thesis",
-  "title": "Concise insight title",
-  "thesis": "1-2 paragraph argument explaining the opportunity or risk",
-  "evidence": [
-    { "type": "technical", "detail": "RSI at 28, oversold territory..." },
-    { "type": "fundamental", "detail": "P/E ratio below 5-year average..." },
-    { "type": "macro", "detail": "ECB signaling dovish pivot..." },
-    { "type": "correlation", "detail": "Gold/EUR divergence historically..." }
-  ],
-  "riskAssessment": "Key risks: ...",
-  "confidence": 0.0-1.0,
-  "timeHorizon": "days" | "weeks" | "months" | "quarters",
-  "relatedAssets": [{ "assetId": "...", "action": "buy" | "sell" | "hold" | "watch" }]
-}
-
-RULES:
-- Never recommend all-in positions. Frame as relative sizing.
-- Always include risk assessment. No thesis without counter-thesis.
-- Confidence above 0.8 requires strong multi-signal convergence.
-- Flag when your analysis contradicts recent patterns.
-- This is a research tool, not financial advice. Frame accordingly.
-- Return a JSON array of 1-5 recommendations. Return ONLY valid JSON, no explanatory text.`;
 
 /** Fetch OHLCV data for a stock from Finnhub (daily candles). */
 async function fetchStockCandles(symbol: string, days: number): Promise<OHLCV[]> {
@@ -109,7 +80,7 @@ async function fetchCryptoCandles(
       high,
       low,
       close,
-      volume: 0, // OHLC endpoint doesn't include volume
+      volume: 0,
       timestamp,
     }));
   } catch {
@@ -139,19 +110,18 @@ function computeExpiry(timeHorizon: string): string {
   return now.toISOString();
 }
 
-/** Scout agent — technical analysis, opportunity scanning. */
+/** Scout agent — technical analysis, opportunity scanning. Cross-verified. */
 export class ScoutAgent extends BaseAgent {
-  private _lastContext: ScoutContext | null = null;
-
   constructor() {
     const config: AgentConfig = {
       id: "scout",
       name: "Scout",
-      model: MODELS.routine,
+      skillId: "analyze-technicals",
       maxTokensOutput: parseInt(
         process.env.AGENT_SCOUT_MAX_OUTPUT_TOKENS || "2000",
       ),
       schedule: process.env.AGENT_SCOUT_CRON || "0 */4 * * *",
+      crossVerify: true, // Enable 1-verifier cross-verification
     };
     super(config);
   }
@@ -223,10 +193,9 @@ export class ScoutAgent extends BaseAgent {
       })
       .join("\n");
 
-    // 3. Fetch price data + technical indicators for each asset
+    // 3. Fetch price data + technical indicators
     const priceLines: string[] = [];
     for (const asset of assetList.slice(0, 15)) {
-      // Limit to 15 assets
       let candles: OHLCV[] = [];
 
       if (asset.assetClass === "stock") {
@@ -237,7 +206,6 @@ export class ScoutAgent extends BaseAgent {
           asset.symbol.toLowerCase();
         candles = await fetchCryptoCandles(cgId, 200);
       }
-      // Metals: no free OHLCV endpoint — skip technicals
 
       if (candles.length > 0) {
         const indicators = computeIndicators(candles);
@@ -248,7 +216,7 @@ export class ScoutAgent extends BaseAgent {
     }
     const priceData = priceLines.join("\n\n");
 
-    // 4. Get recent news with sentiment (Sentinel output from last 48h)
+    // 4. Get recent news with sentiment
     const twoDaysAgo = new Date(
       Date.now() - 2 * 24 * 60 * 60 * 1000,
     ).toISOString();
@@ -278,43 +246,37 @@ export class ScoutAgent extends BaseAgent {
     return { portfolioSummary, priceData, sentimentSummary, assetIds };
   }
 
-  getSystemPrompt(): string {
-    return SCOUT_SYSTEM;
-  }
-
-  buildMessages(context: ScoutContext): Anthropic.MessageParam[] {
-    return [
-      {
-        role: "user",
-        content: `PORTFOLIO STATE:\n${context.portfolioSummary}\n\nPRICE DATA:\n${context.priceData}\n\nRECENT NEWS SENTIMENT:\n${context.sentimentSummary}`,
+  buildTask(context: ScoutContext): OrchestratorTask {
+    return {
+      skillId: "analyze-technicals",
+      input: {
+        portfolioSummary: context.portfolioSummary,
+        priceData: context.priceData,
+        sentimentSummary: context.sentimentSummary,
       },
-    ];
+      crossVerify: true,
+      verifierCount: 1,
+    };
   }
 
   async processResponse(
-    response: Anthropic.Message,
+    response: AIResponse,
   ): Promise<AgentRunResult & { recommendations: ScoutRecommendation[] }> {
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return {
-        itemsProcessed: 0,
-        itemsCreated: 0,
-        summary: "No text response from Claude",
-        recommendations: [],
-      };
-    }
-
     let recs: ScoutRecommendation[] = [];
-    try {
-      let jsonStr = textBlock.text.trim();
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+
+    if (response.parsed && Array.isArray(response.parsed)) {
+      recs = response.parsed as ScoutRecommendation[];
+    } else {
+      try {
+        let jsonStr = response.text.trim();
+        if (jsonStr.startsWith("```")) {
+          jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+        }
+        const parsed = JSON.parse(jsonStr);
+        recs = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        console.error("[Scout] Failed to parse response as JSON");
       }
-      const parsed = JSON.parse(jsonStr);
-      recs = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      console.error("[Scout] Failed to parse Claude response as JSON");
-      recs = [];
     }
 
     return {
@@ -335,12 +297,6 @@ export class ScoutAgent extends BaseAgent {
 
     for (const rec of result.recommendations) {
       try {
-        // Map asset symbols to IDs from context
-        const relatedAssets = rec.relatedAssets?.map((ra) => ({
-          ...ra,
-          // Keep the assetId as provided (Scout may use symbols)
-        }));
-
         await db.insert(recommendations).values({
           id: newId(),
           agentId: "scout",
@@ -351,7 +307,7 @@ export class ScoutAgent extends BaseAgent {
           riskAssessment: rec.riskAssessment,
           confidence: Math.max(0, Math.min(1, rec.confidence)),
           timeHorizon: rec.timeHorizon,
-          relatedAssets: relatedAssets as unknown as Record<string, unknown>,
+          relatedAssets: rec.relatedAssets as unknown as Record<string, unknown>,
           status: "active",
           expiresAt: computeExpiry(rec.timeHorizon),
         });
@@ -363,22 +319,6 @@ export class ScoutAgent extends BaseAgent {
 
     result.itemsCreated = created;
     result.summary = `Generated ${result.itemsProcessed} recommendations, persisted ${created}`;
-  }
-
-  /** Override run to capture context for persistResults. */
-  async run(
-    trigger: "scheduled" | "manual" | "event",
-  ): Promise<AgentRunResult> {
-    const originalGather = this.gatherContext.bind(this);
-    this.gatherContext = async () => {
-      const ctx = await originalGather();
-      this._lastContext = ctx;
-      return ctx;
-    };
-
-    const result = await super.run(trigger);
-    this._lastContext = null;
-    return result;
   }
 }
 

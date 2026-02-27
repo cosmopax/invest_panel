@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
         id: conversations.id,
         title: conversations.title,
         type: conversations.type,
+        preferredProvider: conversations.preferredProvider,
         isArchived: conversations.isArchived,
         createdAt: conversations.createdAt,
         updatedAt: conversations.updatedAt,
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
   try {
     const db = getDb();
     const body = await request.json();
-    const { title, type = "general" } = body;
+    const { title, type = "general", preferredProvider = "claude" } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -121,9 +122,10 @@ export async function POST(request: NextRequest) {
       id,
       title,
       type,
+      preferredProvider,
     });
 
-    return NextResponse.json({ id, title, type });
+    return NextResponse.json({ id, title, type, preferredProvider });
   } catch (error) {
     console.error("[API] POST /api/conversations failed:", error);
     return NextResponse.json(

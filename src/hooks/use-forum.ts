@@ -7,6 +7,7 @@ export interface ConversationData {
   id: string;
   title: string;
   type: string;
+  preferredProvider?: string;
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -80,7 +81,7 @@ export function useCreateConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { title: string; type?: string }) => {
+    mutationFn: async (data: { title: string; type?: string; preferredProvider?: string }) => {
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,7 +117,7 @@ export function useArchiveConversation() {
 }
 
 /** Send a message and stream the response. */
-export function useChat(conversationId: string, conversationType: string) {
+export function useChat(conversationId: string, conversationType: string, preferredProvider?: string) {
   const queryClient = useQueryClient();
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
@@ -137,6 +138,7 @@ export function useChat(conversationId: string, conversationType: string) {
             conversationId,
             message,
             conversationType,
+            preferredProvider,
           }),
           signal: abortRef.current.signal,
         });
@@ -192,7 +194,7 @@ export function useChat(conversationId: string, conversationType: string) {
         abortRef.current = null;
       }
     },
-    [conversationId, conversationType, queryClient],
+    [conversationId, conversationType, preferredProvider, queryClient],
   );
 
   const cancel = useCallback(() => {
