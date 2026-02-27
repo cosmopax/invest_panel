@@ -1,0 +1,23 @@
+{
+  "workspace.name": "MERIDIAN — Investment Intelligence Hub",
+  "workspace.description": "Personal investment research platform with autonomous AI agents",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "agent.approvalMode": "plan",
+  "agent.defaultModel": "claude-opus-4-6",
+  "agent.knowledge.autoLearn": true,
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/data": true,
+    "**/.next": true,
+    "**/drizzle/meta": true
+  }
+}
