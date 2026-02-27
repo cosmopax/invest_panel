@@ -1,5 +1,6 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { createSentinel } from "./sentinel";
+import { createLibrarian } from "./librarian";
 
 interface AgentScheduleConfig {
   enabled: boolean;
@@ -15,7 +16,13 @@ const AGENT_CONFIGS: Record<string, AgentScheduleConfig> = {
     description: "News monitoring and sentiment tagging",
     create: createSentinel,
   },
-  // Phase 4+: scout, librarian, strategist will be added here
+  librarian: {
+    enabled: process.env.AGENT_LIBRARIAN_ENABLED !== "false",
+    schedule: process.env.AGENT_LIBRARIAN_CRON || "0 2 * * 1",
+    description: "Knowledge discovery and indexing",
+    create: createLibrarian,
+  },
+  // Phase 4+: scout, strategist will be added here
 };
 
 const activeTasks: Map<string, ScheduledTask> = new Map();
