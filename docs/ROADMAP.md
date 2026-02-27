@@ -68,17 +68,17 @@
 ---
 
 ## Phase 3: The Archive + Librarian
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 2-3 days
-**Actual**: —
+**Actual**: 2026-02-27
 **Tag**: `v0.3.0-phase3`
 
-- [ ] 3.1 Knowledge library schema populated with 30 seed entries
-- [ ] 3.2 `/archive` page (taxonomy browser, FTS5, entry detail)
-- [ ] 3.3 KaTeX math rendering
-- [ ] 3.4 Librarian agent (academic source discovery)
-- [ ] 3.5 Cross-referencing system
-- [ ] 3.6 FTS5 search on knowledge entries
+- [x] 3.1 Knowledge library schema populated with 30 seed entries
+- [x] 3.2 `/archive` page (taxonomy browser, FTS5, entry detail)
+- [x] 3.3 KaTeX math rendering
+- [x] 3.4 Librarian agent (academic source discovery)
+- [x] 3.5 Cross-referencing system
+- [x] 3.6 FTS5 search on knowledge entries
 
 **Definition of Done**: User can browse, search, read knowledge entries. Librarian discovers new entries.
 

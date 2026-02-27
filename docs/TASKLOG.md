@@ -60,3 +60,11 @@ Chronological log of all completed tasks.
 - **Build**: pass
 - **Status**: complete
 - **Notes**: News service fetches from Finnhub (market + company news for portfolio stocks) + 6 RSS feeds (ECB, BIS, Reuters, BBC, NYT, MarketWatch). Content dedup via SHA-256 hash + cluster key. BaseAgent abstract class with full lifecycle (gather→build→call→process→persist). Sentinel agent: batch classification via Claude API (category, relevance 0-1, sentiment per asset, source quality, narrative tags). Agent scheduler via node-cron with env-configurable cron expressions and timezone (Europe/Vienna). Claude client wrapper with cost estimation. Wire page: filterable feed with category badges, sentiment pills, relevance bars, bookmarks, FTS5 search, emerging narrative clusters sidebar. Agent run history in settings with scheduler status, cumulative stats, and recent runs. ~1,900 lines added.
+
+### [2026-02-27T03:45:00Z] Phase 3: The Archive + Librarian
+- **Phase**: 3
+- **Files**: 13 files (knowledge-seed.ts, knowledge-service.ts, librarian.ts, scheduler.ts updated, api/knowledge/route.ts, use-knowledge.ts, 3 archive components, archive/page.tsx, archive/[slug]/page.tsx, layout.tsx updated, react-katex.d.ts)
+- **Decisions**: .gitignore `data/` → `/data/` to avoid matching `src/lib/data/`.
+- **Build**: pass
+- **Status**: complete
+- **Notes**: 30 seed knowledge entries across 6 domains (Financial Mathematics, Behavioral Economics, Macroeconomics, Futures Studies, Game Theory, Complexity Science) with full LaTeX math, explanations, practical applications, limitations, and cross-references. Knowledge service with FTS5 search, domain taxonomy, seeding. Librarian agent discovers new entries weekly (Monday 2 AM CET). Archive page with domain sidebar taxonomy browser, knowledge cards grid, FTS5 search. Entry detail page with KaTeX math rendering (dynamic import, SSR disabled), react-markdown for explanations, related entries navigation. ~2,500 lines added.

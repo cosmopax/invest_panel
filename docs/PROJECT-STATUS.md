@@ -1,8 +1,8 @@
 # MERIDIAN — Project Status
 
-**Last Updated**: 2026-02-27T03:30:00Z
-**Current Phase**: 3 — The Archive + Librarian (next)
-**Overall Progress**: 50% (Phase 0 + Phase 1 + Phase 2 complete)
+**Last Updated**: 2026-02-27T04:00:00Z
+**Current Phase**: 4 — The Desk + Scout + Strategist (next)
+**Overall Progress**: 67% (Phase 0-3 complete)
 
 ---
 
@@ -13,13 +13,13 @@
 | 0 | Environment Setup | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 1 | Foundation | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 2 | The Wire + Sentinel | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
-| 3 | The Archive + Librarian | ⬜ Not Started | 0% | — | — |
+| 3 | The Archive + Librarian | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 4 | The Desk + Scout + Strategist | ⬜ Not Started | 0% | — | — |
 | 5 | The Forum + Full Orchestration | ⬜ Not Started | 0% | — | — |
 
 ## Current Work
 
-**Active Task**: Phase 3 — The Archive + Librarian agent
+**Active Task**: Phase 4 — The Desk + Scout + Strategist agents
 **Blockers**: None. API keys not yet configured in .env.local (not blocking dev).
 **Open Questions**: None
 
@@ -27,12 +27,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Files created | ~54 source files |
-| Lines of code | ~5,100 (src/) |
+| Files created | ~68 source files |
+| Lines of code | ~7,300 (src/) |
 | Build status | ✅ passing |
 | Type check status | ✅ zero errors |
-| Git commits | 8 |
-| Last commit | 5799baf |
+| Git commits | 10 |
+| Last commit | f959eec |
 | Git tag | v0.1.0-phase1 |
 | DB size | 217KB (schema + FTS5 tables) |
 
@@ -64,8 +64,9 @@
 - **Performance chart**: Lightweight Charts component not yet built (spec says area chart with time range).
 - **Watchlist UI**: API route exists, no UI component yet.
 - **CSV export/import**: Buttons exist but disabled.
-- **Knowledge library**: Phase 3 work.
-- **Scout/Strategist agents**: Phase 4 work.
+- **Scout agent**: Phase 4 — technical analysis, opportunity scanning.
+- **Strategist agent**: Phase 4 — macro synthesis with Opus model.
+- **Desk page**: Phase 4 — recommendation cards, category tabs.
 - **Forum chat**: Phase 5 work.
 
 ## Deviations from Spec
@@ -93,7 +94,7 @@
 
 ## Next Steps
 
-1. Begin Phase 3: knowledge library, Librarian agent, /archive page
+1. Begin Phase 4: Scout agent, Strategist agent, /desk page with recommendation cards
 2. User should configure API keys in `.env.local` to enable live pricing + agent runs
 3. Add performance chart (Lightweight Charts) to dashboard
 4. Add watchlist UI component to dashboard
