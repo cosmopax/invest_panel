@@ -52,3 +52,11 @@ Chronological log of all completed tasks.
 - **Phase**: 1
 - **Status**: complete
 - **Notes**: All Phase 1 deliverables met. Build passes. Types clean. 6 commits pushed. Tagged v0.1.0-phase1.
+
+### [2026-02-27T03:30:00Z] Phase 2: The Wire + Sentinel
+- **Phase**: 2
+- **Files**: 14 files (dedup.ts, news-service.ts, claude-client.ts, base-agent.ts, sentinel.ts, scheduler.ts, api/news/route.ts, api/agents/route.ts, use-news.ts, 3 wire components, wire/page.tsx, settings/page.tsx updated)
+- **Decisions**: None
+- **Build**: pass
+- **Status**: complete
+- **Notes**: News service fetches from Finnhub (market + company news for portfolio stocks) + 6 RSS feeds (ECB, BIS, Reuters, BBC, NYT, MarketWatch). Content dedup via SHA-256 hash + cluster key. BaseAgent abstract class with full lifecycle (gather→build→call→process→persist). Sentinel agent: batch classification via Claude API (category, relevance 0-1, sentiment per asset, source quality, narrative tags). Agent scheduler via node-cron with env-configurable cron expressions and timezone (Europe/Vienna). Claude client wrapper with cost estimation. Wire page: filterable feed with category badges, sentiment pills, relevance bars, bookmarks, FTS5 search, emerging narrative clusters sidebar. Agent run history in settings with scheduler status, cumulative stats, and recent runs. ~1,900 lines added.

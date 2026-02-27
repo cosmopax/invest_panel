@@ -50,18 +50,18 @@
 ---
 
 ## Phase 2: The Wire + Sentinel
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 2-3 days
-**Actual**: —
+**Actual**: 2026-02-27
 **Tag**: `v0.2.0-phase2`
 
-- [ ] 2.1 News service (Finnhub news + RSS feeds)
-- [ ] 2.2 Sentinel agent (BaseAgent, Claude API, news classification)
-- [ ] 2.3 Content deduplication (SHA-256 hash + cluster IDs)
-- [ ] 2.4 Agent scheduler (node-cron)
-- [ ] 2.5 `/wire` page (filterable feed, category sidebar, narratives)
-- [ ] 2.6 Agent run history in settings
-- [ ] 2.7 FTS5 search on news items
+- [x] 2.1 News service (Finnhub news + RSS feeds)
+- [x] 2.2 Sentinel agent (BaseAgent, Claude API, news classification)
+- [x] 2.3 Content deduplication (SHA-256 hash + cluster IDs)
+- [x] 2.4 Agent scheduler (node-cron)
+- [x] 2.5 `/wire` page (filterable feed, category sidebar, narratives)
+- [x] 2.6 Agent run history in settings
+- [x] 2.7 FTS5 search on news items
 
 **Definition of Done**: Sentinel runs on schedule, classifies news, Wire displays filterable feed.
 

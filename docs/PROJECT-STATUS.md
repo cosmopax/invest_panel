@@ -1,8 +1,8 @@
 # MERIDIAN — Project Status
 
-**Last Updated**: 2026-02-27T03:10:00Z
-**Current Phase**: 2 — The Wire + Sentinel (next)
-**Overall Progress**: 33% (Phase 0 + Phase 1 complete)
+**Last Updated**: 2026-02-27T03:30:00Z
+**Current Phase**: 3 — The Archive + Librarian (next)
+**Overall Progress**: 50% (Phase 0 + Phase 1 + Phase 2 complete)
 
 ---
 
@@ -12,14 +12,14 @@
 |-------|------|--------|----------|---------|-----------|
 | 0 | Environment Setup | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 1 | Foundation | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
-| 2 | The Wire + Sentinel | ⬜ Not Started | 0% | — | — |
+| 2 | The Wire + Sentinel | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 3 | The Archive + Librarian | ⬜ Not Started | 0% | — | — |
 | 4 | The Desk + Scout + Strategist | ⬜ Not Started | 0% | — | — |
 | 5 | The Forum + Full Orchestration | ⬜ Not Started | 0% | — | — |
 
 ## Current Work
 
-**Active Task**: Phase 2 — The Wire + Sentinel agent
+**Active Task**: Phase 3 — The Archive + Librarian agent
 **Blockers**: None. API keys not yet configured in .env.local (not blocking dev).
 **Open Questions**: None
 
@@ -27,12 +27,12 @@
 
 | Metric | Value |
 |--------|-------|
-| Files created | ~40 source files |
-| Lines of code | ~3,200 (src/) |
+| Files created | ~54 source files |
+| Lines of code | ~5,100 (src/) |
 | Build status | ✅ passing |
 | Type check status | ✅ zero errors |
-| Git commits | 6 |
-| Last commit | b1934ad |
+| Git commits | 8 |
+| Last commit | 5799baf |
 | Git tag | v0.1.0-phase1 |
 | DB size | 217KB (schema + FTS5 tables) |
 
@@ -47,13 +47,26 @@
 - **Dark theme**: MERIDIAN palette — deep navy #0a0e1a, cards #111827, accent blue #3b82f6, gain emerald, loss red.
 - **State**: Zustand for UI state, TanStack Query for server data (60s auto-refetch).
 
+## What Works (Phase 2)
+
+- **News service**: Finnhub market/company news + 6 RSS feeds (ECB, BIS, Reuters, BBC, NYT, MarketWatch). rss-parser with 10s timeout.
+- **Content dedup**: SHA-256 hash on normalized title + content. Cluster keys for fuzzy grouping. Unique constraint prevents duplicates.
+- **Sentinel agent**: BaseAgent lifecycle, Claude API batch classification (category, relevance, sentiment per asset). Configurable via env vars.
+- **Agent scheduler**: node-cron with env cron expressions, timezone support, enable/disable per agent, manual trigger.
+- **Wire page**: Filterable feed (category, sentiment, quality, FTS5 search), news cards with source quality badges, sentiment pills, relevance bars, bookmarks.
+- **Narrative clusters**: Sidebar shows emerging topics grouped by frequency.
+- **Agent run history**: Settings page shows scheduler status, cumulative stats, recent runs with duration/tokens/cost.
+- **API routes**: `/api/news` (GET with filters + FTS5, PATCH read/bookmark), `/api/agents` (GET history + stats, POST manual trigger).
+
 ## What's NOT Working Yet
 
 - **Live prices**: Dashboard shows cost basis only (no API keys configured yet). PriceService is implemented but needs keys.
 - **Performance chart**: Lightweight Charts component not yet built (spec says area chart with time range).
 - **Watchlist UI**: API route exists, no UI component yet.
 - **CSV export/import**: Buttons exist but disabled.
-- **Agent system**: All Phase 2+ work.
+- **Knowledge library**: Phase 3 work.
+- **Scout/Strategist agents**: Phase 4 work.
+- **Forum chat**: Phase 5 work.
 
 ## Deviations from Spec
 
@@ -80,7 +93,7 @@
 
 ## Next Steps
 
-1. Begin Phase 2: news service, Sentinel agent, /wire page
-2. User should configure API keys in `.env.local` to enable live pricing
+1. Begin Phase 3: knowledge library, Librarian agent, /archive page
+2. User should configure API keys in `.env.local` to enable live pricing + agent runs
 3. Add performance chart (Lightweight Charts) to dashboard
 4. Add watchlist UI component to dashboard
