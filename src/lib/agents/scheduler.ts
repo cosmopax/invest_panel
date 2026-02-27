@@ -1,6 +1,8 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { createSentinel } from "./sentinel";
 import { createLibrarian } from "./librarian";
+import { createScout } from "./scout";
+import { createStrategist } from "./strategist";
 
 interface AgentScheduleConfig {
   enabled: boolean;
@@ -22,7 +24,18 @@ const AGENT_CONFIGS: Record<string, AgentScheduleConfig> = {
     description: "Knowledge discovery and indexing",
     create: createLibrarian,
   },
-  // Phase 4+: scout, strategist will be added here
+  scout: {
+    enabled: process.env.AGENT_SCOUT_ENABLED !== "false",
+    schedule: process.env.AGENT_SCOUT_CRON || "0 */4 * * *",
+    description: "Technical analysis and opportunity scanning",
+    create: createScout,
+  },
+  strategist: {
+    enabled: process.env.AGENT_STRATEGIST_ENABLED !== "false",
+    schedule: process.env.AGENT_STRATEGIST_CRON || "0 8 * * 1-5",
+    description: "Macro synthesis and strategic analysis (Opus)",
+    create: createStrategist,
+  },
 };
 
 const activeTasks: Map<string, ScheduledTask> = new Map();
