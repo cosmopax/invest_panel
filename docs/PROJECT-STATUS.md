@@ -1,8 +1,8 @@
 # MERIDIAN — Project Status
 
-**Last Updated**: 2026-02-27T06:00:00Z
-**Current Phase**: COMPLETE — All 6 phases done
-**Overall Progress**: 100% (Phase 0-5 complete)
+**Last Updated**: 2026-02-27T14:00:00Z
+**Current Phase**: COMPLETE — All 6 phases + Multi-AI Orchestration done
+**Overall Progress**: 100% (Phase 0-5 + AI Orchestration complete)
 
 ---
 
@@ -16,6 +16,7 @@
 | 3 | The Archive + Librarian | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 4 | The Desk + Scout + Strategist | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 5 | The Forum + Full Orchestration | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
+| AI | Multi-AI Orchestration Framework | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 
 ## Current Work
 
@@ -27,13 +28,13 @@
 
 | Metric | Value |
 |--------|-------|
-| Files created | ~90 source files |
-| Lines of code | ~10,800 (src/) |
+| Files created | ~110 source files |
+| Lines of code | ~13,000 (src/) |
 | Build status | ✅ passing |
 | Type check status | ✅ zero errors |
-| Git commits | 15 |
-| Last commit | 98c7a1a |
-| API routes | 11 (portfolio, watchlist, prices, history, search, settings, news, agents, knowledge, recommendations, chat, conversations) |
+| Git commits | 16 |
+| Last commit | 593a7f5 |
+| API routes | 12 (portfolio, watchlist, prices, history, search, settings, news, agents, knowledge, recommendations, chat, conversations, ai/health) |
 | Pages | 8 (dashboard, wire, desk, archive, archive/[slug], forum, settings, 404) |
 | Agents | 4 (sentinel, scout, librarian, strategist) |
 
@@ -86,6 +87,18 @@
 - **Full orchestration**: All 4 agents configured in scheduler (Sentinel every 15m, Scout every 4h, Librarian weekly, Strategist weekday mornings).
 - **API routes**: `/api/chat` (POST with SSE streaming), `/api/conversations` (GET/POST/PATCH).
 
+## What Works (Multi-AI Orchestration)
+
+- **Provider layer**: Abstract CLI subprocess wrappers for Claude Code (Opus 4.6), Gemini CLI (3.1 Pro Preview), Codex CLI (GPT-5.3). Health checks with 5min cache.
+- **Orchestrator**: Task routing with fallback chains (primary → fallback1 → fallback2). Cross-verification protocol for high-stakes analysis.
+- **Skills system**: 9 reusable prompt templates (classify-news, analyze-technicals, generate-recommendations, macro-synthesis, scenario-planning, discover-knowledge, verify-analysis, summarize-context, chat-response).
+- **Subagent executor**: Parallel task execution via Promise.allSettled with per-task timeouts.
+- **Provider routing**: Sentinel→Gemini, Scout→Codex (1 verifier), Strategist→Claude (2 verifiers), Librarian→Gemini, Forum→Claude.
+- **Forum chat**: Simulated streaming via SSE (CLI tools run to completion, response chunked at 50 chars/15ms). Provider selector per conversation.
+- **Settings UI**: Provider health card showing status/latency for all 3 CLIs, with manual refresh.
+- **Schema**: `provider` column on agentRuns, `preferredProvider` on conversations.
+- **No more Anthropic SDK dependency for agents**: All 4 agents + Forum chat use Orchestrator exclusively.
+
 ## What's NOT Working Yet (Polish Items)
 
 - **Live prices**: Dashboard shows cost basis only (no API keys configured yet). PriceService is implemented but needs keys.
@@ -114,7 +127,10 @@
 | CoinGecko | ⬜ Not configured | Needed for crypto prices |
 | Metals.Dev | ⬜ Not configured | Needed for metal prices |
 | GoldAPI | ⬜ Not configured | Fallback for metals |
-| Anthropic | ⬜ Not configured | Needed for all 4 agents + Forum chat |
+| Anthropic | ⬜ Not configured | Legacy — replaced by CLI providers |
+| Claude CLI | ✅ Available | Strategist, Forum chat |
+| Gemini CLI | ✅ Available | Sentinel, Librarian |
+| Codex CLI | ✅ Available | Scout |
 
 ## Next Steps (Post-Launch Polish)
 

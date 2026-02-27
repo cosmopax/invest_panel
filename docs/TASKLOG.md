@@ -88,3 +88,11 @@ Chronological log of all completed tasks.
 ### [2026-02-27T06:00:30Z] All Phases Complete
 - **Status**: complete
 - **Notes**: MERIDIAN Investment Intelligence Hub fully implemented across 6 phases. 90+ source files, ~10,800 lines of code, 11 API routes, 8 pages, 4 AI agents, 21 build routes. Build passing with zero type errors. All features functional pending API key configuration.
+
+### [2026-02-27T14:00:00Z] Multi-AI Orchestration Framework
+- **Phase**: AI
+- **Files**: 20 new, 11 modified (31 total)
+- **Decisions**: Route Sentinel/Librarian→Gemini (fast classification), Scout→Codex (analytics), Strategist/Forum→Claude (deep reasoning). Cross-verify Scout (1 verifier) and Strategist (2 verifiers). Simulated streaming for CLI-based chat (chunk at 50 chars/15ms).
+- **Build**: pass
+- **Status**: complete
+- **Notes**: Replaced direct Anthropic SDK usage with provider-agnostic orchestration layer. Three CLI providers (Claude Code, Gemini CLI, Codex CLI) wrapped as subprocess executors. Skills system with 9 reusable prompt templates. Subagent parallel executor via Promise.allSettled. Cross-verification protocol with consensus evaluation (unanimous/majority/no_consensus). Automatic fallback chains per task domain. Provider health endpoint (/api/ai/health) with cached checks. Forum chat migrated to simulated streaming. Provider selector added to new conversation dialog. Settings page shows provider health status with latency. Schema updated: `provider` column on agentRuns, `preferredProvider` on conversations. ~2,300 lines added.
