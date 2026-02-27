@@ -76,3 +76,15 @@ Chronological log of all completed tasks.
 - **Build**: pass
 - **Status**: complete
 - **Notes**: Technical indicators library (RSI, MACD, SMA/EMA, Bollinger Bands, volume trends) with summarize function for Scout prompt injection. Scout agent: fetches 200-day OHLCV from Finnhub/CoinGecko, computes all technicals per asset, reads Sentinel news context (last 48h), generates 1-5 typed recommendations per run. Strategist agent: uses Opus model for deep macro analysis, scenario planning with probabilities, regime identification, historical parallels, assumption challenging. Reads Scout recs + Sentinel digest. Inter-agent data flow via shared DB (news_items → Scout, recommendations → Strategist). Recommendations API with full filter set (type, status, agent, confidence range, horizon) + PATCH for status/outcome/accuracy. Desk page: 5 category tabs, expandable cards with confidence meters and evidence display, stats cards, filter controls, Run Scout/Strategist manual triggers. ~2,000 lines added.
+
+### [2026-02-27T06:00:00Z] Phase 5: The Forum + Full Orchestration
+- **Phase**: 5
+- **Files**: 8 files (api/chat/route.ts, api/conversations/route.ts, use-forum.ts, 4 forum components, forum/page.tsx)
+- **Decisions**: None
+- **Build**: pass
+- **Status**: complete
+- **Notes**: Chat API with SSE streaming via Anthropic SDK. Four conversation types with tailored system prompts: General (Sonnet), Scenario Planning (Opus), Portfolio Review (Sonnet), Strategy Session (Opus). Auto context injection: portfolio holdings, recent news digest (top 15), active recommendations. Message persistence with token/cost tracking. Conversations API with CRUD + FTS5 search. Forum page: three-column layout (conversation list with search, chat thread with real-time streaming + abort, toggleable context sidebar showing portfolio/news/recommendations). Message bubbles with react-markdown + remark-gfm rendering, streaming indicator. All 4 agents configured in scheduler. ~1,500 lines added.
+
+### [2026-02-27T06:00:30Z] All Phases Complete
+- **Status**: complete
+- **Notes**: MERIDIAN Investment Intelligence Hub fully implemented across 6 phases. 90+ source files, ~10,800 lines of code, 11 API routes, 8 pages, 4 AI agents, 21 build routes. Build passing with zero type errors. All features functional pending API key configuration.

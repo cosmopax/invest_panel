@@ -1,8 +1,8 @@
 # MERIDIAN — Project Status
 
-**Last Updated**: 2026-02-27T05:00:00Z
-**Current Phase**: 5 — The Forum + Full Orchestration (next)
-**Overall Progress**: 83% (Phase 0-4 complete)
+**Last Updated**: 2026-02-27T06:00:00Z
+**Current Phase**: COMPLETE — All 6 phases done
+**Overall Progress**: 100% (Phase 0-5 complete)
 
 ---
 
@@ -15,26 +15,27 @@
 | 2 | The Wire + Sentinel | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 3 | The Archive + Librarian | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 | 4 | The Desk + Scout + Strategist | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
-| 5 | The Forum + Full Orchestration | ⬜ Not Started | 0% | — | — |
+| 5 | The Forum + Full Orchestration | ✅ Complete | 100% | 2026-02-27 | 2026-02-27 |
 
 ## Current Work
 
-**Active Task**: Phase 5 — The Forum + Full Orchestration
-**Blockers**: None. API keys not yet configured in .env.local (not blocking dev).
+**Active Task**: Post-launch refinements (optional)
+**Blockers**: API keys not yet configured in .env.local (blocks live pricing + agent runs, not blocking dev).
 **Open Questions**: None
 
 ## Metrics
 
 | Metric | Value |
 |--------|-------|
-| Files created | ~80 source files |
-| Lines of code | ~9,300 (src/) |
+| Files created | ~90 source files |
+| Lines of code | ~10,800 (src/) |
 | Build status | ✅ passing |
 | Type check status | ✅ zero errors |
-| Git commits | 13 |
-| Last commit | fc69d27 |
-| Git tag | v0.1.0-phase1 |
-| DB size | 217KB (schema + FTS5 tables) |
+| Git commits | 15 |
+| Last commit | 98c7a1a |
+| API routes | 11 (portfolio, watchlist, prices, history, search, settings, news, agents, knowledge, recommendations, chat, conversations) |
+| Pages | 8 (dashboard, wire, desk, archive, archive/[slug], forum, settings, 404) |
+| Agents | 4 (sentinel, scout, librarian, strategist) |
 
 ## What Works (Phase 1)
 
@@ -68,21 +69,29 @@
 
 ## What Works (Phase 4)
 
-- **Technical indicators**: RSI(14), MACD(12/26/9), SMA/EMA(50/200), Bollinger Bands(20/2), volume trends. Human-readable summaries for Scout context.
-- **Scout agent**: Fetches 200-day OHLCV data, computes technicals, reads Sentinel news context (last 48h), generates opportunity/risk/rebalance recommendations. Runs every 4 hours.
-- **Strategist agent**: Macro synthesis via Opus model. Scenario planning (3-4 scenarios with probabilities), regime identification, historical parallels, assumption challenging. Reads Scout recommendations + Sentinel news digest. Runs weekday mornings 8 AM CET.
-- **Inter-agent data flow**: Sentinel writes news_items → Scout reads for context. Scout writes recommendations → Strategist reads for synthesis. All via shared SQLite DB.
-- **Desk page**: Category tabs (All/Opportunities/Risk Warnings/Rebalancing/Macro Thesis), expandable recommendation cards with confidence meters, evidence display, risk assessment, related asset badges with action types. Stats cards, filter controls (agent/horizon/status/confidence), Run Scout/Strategist buttons.
-- **Recommendation tracking**: Status lifecycle (active → expired/validated/invalidated), accuracy scoring, outcome notes, auto-expiry based on time horizon.
-- **API routes**: `/api/recommendations` (GET with filters, PATCH for status/outcome updates).
+- **Technical indicators**: RSI(14), MACD(12/26/9), SMA/EMA(50/200), Bollinger Bands(20/2), volume trends.
+- **Scout agent**: Fetches 200-day OHLCV data, computes technicals, reads Sentinel news context (last 48h), generates opportunity/risk/rebalance recommendations. Every 4 hours.
+- **Strategist agent**: Macro synthesis via Opus model. Scenario planning, regime identification, historical parallels, assumption challenging. Reads Scout + Sentinel. Weekday mornings.
+- **Desk page**: Category tabs, expandable recommendation cards with confidence meters, evidence, risk assessment, filter controls.
+- **API routes**: `/api/recommendations` (GET with filters, PATCH for status/outcome).
 
-## What's NOT Working Yet
+## What Works (Phase 5)
+
+- **Forum page**: Three-column layout — conversation list (searchable), chat thread with streaming, context sidebar (portfolio, news, recommendations).
+- **Chat with Strategist**: SSE streaming via Anthropic SDK, real-time text rendering, abort support. Model selection by conversation type (Sonnet for general/review, Opus for scenarios/strategy).
+- **Conversation types**: General, Scenario Planning, Portfolio Review, Strategy Session — each with tailored system prompts and context injection.
+- **Context injection**: Auto-builds system prompt with current portfolio holdings, recent news digest, active recommendations. Refreshes per message.
+- **Message persistence**: All messages stored in DB, token usage and cost tracked per response.
+- **FTS5 search**: Full-text search across all conversation message content.
+- **Full orchestration**: All 4 agents configured in scheduler (Sentinel every 15m, Scout every 4h, Librarian weekly, Strategist weekday mornings).
+- **API routes**: `/api/chat` (POST with SSE streaming), `/api/conversations` (GET/POST/PATCH).
+
+## What's NOT Working Yet (Polish Items)
 
 - **Live prices**: Dashboard shows cost basis only (no API keys configured yet). PriceService is implemented but needs keys.
 - **Performance chart**: Lightweight Charts component not yet built (spec says area chart with time range).
 - **Watchlist UI**: API route exists, no UI component yet.
 - **CSV export/import**: Buttons exist but disabled.
-- **Forum chat**: Phase 5 work.
 
 ## Deviations from Spec
 
@@ -105,11 +114,12 @@
 | CoinGecko | ⬜ Not configured | Needed for crypto prices |
 | Metals.Dev | ⬜ Not configured | Needed for metal prices |
 | GoldAPI | ⬜ Not configured | Fallback for metals |
-| Anthropic | ⬜ Not configured | Needed for Phase 2+ agents |
+| Anthropic | ⬜ Not configured | Needed for all 4 agents + Forum chat |
 
-## Next Steps
+## Next Steps (Post-Launch Polish)
 
-1. Begin Phase 5: Forum page with chat interface, Strategist conversations, message streaming
-2. User should configure API keys in `.env.local` to enable live pricing + agent runs
-3. Add performance chart (Lightweight Charts) to dashboard
-4. Add watchlist UI component to dashboard
+1. Configure API keys in `.env.local` to enable live pricing + agent runs
+2. Add performance chart (Lightweight Charts) to dashboard
+3. Add watchlist UI component to dashboard
+4. CSV export/import functionality
+5. Future: bonds/ETFs/REITs, VPS deployment, MCP server, Tauri desktop

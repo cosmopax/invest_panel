@@ -102,19 +102,19 @@
 ---
 
 ## Phase 5: The Forum + Full Orchestration
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Estimated**: 3-4 days
-**Actual**: —
+**Actual**: 2026-02-27
 **Tag**: `v0.5.0-phase5`
 
-- [ ] 5.1 `/forum` page (conversation list, chat interface, context sidebar)
-- [ ] 5.2 Chat with Strategist (context injection)
-- [ ] 5.3 Structured conversation types
-- [ ] 5.4 Message streaming (Claude streaming API)
-- [ ] 5.5 Inline recommendation cards and data visualizations in chat
-- [ ] 5.6 Cross-feature linking
-- [ ] 5.7 FTS5 search on conversations
-- [ ] 5.8 Full agent orchestration (all 4 on schedule)
+- [x] 5.1 `/forum` page (conversation list, chat interface, context sidebar)
+- [x] 5.2 Chat with Strategist (context injection)
+- [x] 5.3 Structured conversation types
+- [x] 5.4 Message streaming (Claude streaming API)
+- [x] 5.5 Inline recommendation cards and data visualizations in chat
+- [x] 5.6 Cross-feature linking
+- [x] 5.7 FTS5 search on conversations
+- [x] 5.8 Full agent orchestration (all 4 on schedule)
 
 **Definition of Done**: User can have strategic conversations with full system context. All agents autonomous.
 
